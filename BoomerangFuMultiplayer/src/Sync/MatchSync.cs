@@ -113,6 +113,13 @@ namespace BoomerangFuMultiplayer.Sync
                 foreach (var m in AccessTools.GetDeclaredMethods(t))
                     if (!m.IsAbstract && (blocked.Contains(m.Name) || (m.Name == "FixedUpdate" && typeof(Projectile).IsAssignableFrom(t))))
                         Do(19, () => h.Patch(m, prefix: M(nameof(PassiveBlock))));
+            foreach (var t in typeof(MovingObstacle).Assembly.GetTypes())
+            {
+                if (!typeof(MovingObstacle).IsAssignableFrom(t) && !typeof(MovingFloor).IsAssignableFrom(t)
+                    && !typeof(MovingDoor).IsAssignableFrom(t) && t != typeof(RotatingObstacleController)) continue;
+                var fu = AccessTools.GetDeclaredMethods(t).FirstOrDefault(m => m.Name == "FixedUpdate"); // inherited ones are patched on the base
+                if (fu != null && !fu.IsAbstract) Do(200, () => h.Patch(fu, prefix: M(nameof(MoverFixedPrefix))));
+            }
             foreach (var name in new[] { nameof(Player.ThrowDisc), nameof(Player.Attack), nameof(Player.Dash) })
             {
                 var m = AccessTools.Method(typeof(Player), name, Type.EmptyTypes);
@@ -959,7 +966,90 @@ namespace BoomerangFuMultiplayer.Sync
             public int Round; public byte GameState; public float RoundTimer, HostTime, ReceivedAt;
             public PlayerSnap[] Players;
             public DiscSnap[] Discs;
+            public MoverSnap[] Movers;
         }
+
+        struct MoverSnap { public Vector3 Pos; public Quaternion Rot; }
+
+        // ── Moving obstacles (walls, floors, doors) ──────────────────────────────
+        // They advance by themselves on every machine, with random durations and directions and,
+        // for some, Time.time: host and client drift apart within seconds. The host now sends their
+        // transforms with every snapshot; clients stop simulating them and place them like players.
+
+        sealed class Mover { public Transform T; public string Key; }
+        static List<Mover> _movers;
+        static int _moversLevel;
+        static readonly FieldInfo FObstacleT = AccessTools.Field(typeof(MovingObstacle), "obstacleTransform");
+        static readonly FieldInfo FFloorT = AccessTools.Field(typeof(MovingFloor), "tr");
+        static readonly FieldInfo FDoorT = AccessTools.Field(typeof(MovingDoor), "obstacleTransform");
+        const int MaxMovers = 64;
+
+        /// <summary>Moving obstacles of the current level, in an order both machines agree on (scene path).</summary>
+        static List<Mover> Movers()
+        {
+            var lm = Game.Get<LevelManager>();
+            int level = lm != null && lm.level != null ? lm.level.GetInstanceID() : 0;
+            if (_movers != null && level == _moversLevel && _movers.TrueForAll(m => m.T != null)) return _movers;
+            var list = new List<Mover>();
+            void Add(Component c, FieldInfo f)
+            {
+                var t = (f?.GetValue(c) as Transform) ?? c.transform;
+                list.Add(new Mover { T = t, Key = c.GetType().Name + ":" + ScenePath(c.transform) });
+            }
+            // the level's own active obstacles, as Level.GetAllSwitchesAndMovingObstacles lists them
+            // (a scene-wide search also catches other loaded levels during transitions)
+            if (lm != null && lm.level != null)
+            {
+                var root = lm.level.gameObject;
+                foreach (var c in root.GetComponentsInChildren<MovingObstacle>()) Add(c, FObstacleT);
+                foreach (var c in root.GetComponentsInChildren<MovingFloor>()) Add(c, FFloorT);
+                foreach (var c in root.GetComponentsInChildren<MovingDoor>()) Add(c, FDoorT);
+            }
+            list.Sort((x, y) => string.CompareOrdinal(x.Key, y.Key));
+            if (list.Count > MaxMovers) list.RemoveRange(MaxMovers, list.Count - MaxMovers);
+            _movers = list;
+            _moversLevel = level;
+            if (Plugin.Diag) Plugin.Log.LogInfo($"[Diag] moving obstacles: {list.Count} in level {lm?.level?.name}");
+            return list;
+        }
+
+        static string ScenePath(Transform t)
+        {
+            var parts = new List<string>();
+            for (; t != null; t = t.parent) parts.Add(t.name + "#" + t.GetSiblingIndex());
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
+        static void RenderMovers(SnapshotData a, SnapshotData b, float k)
+        {
+            if (b.Movers == null || b.Movers.Length == 0) return;
+            var movers = Movers();
+            if (movers.Count != b.Movers.Length)
+            {
+                if (Plugin.Diag && Time.unscaledTime > _nextMoverWarn)
+                {
+                    _nextMoverWarn = Time.unscaledTime + 5f;
+                    Plugin.Log.LogWarning($"[Diag] moving obstacles differ: host {b.Movers.Length}, here {movers.Count}");
+                }
+                if (Time.unscaledTime > _nextMoverRescan) { _nextMoverRescan = Time.unscaledTime + 1f; _movers = null; } // built too early: list again
+                return;
+            }
+            bool blend = a.Movers != null && a.Movers.Length == b.Movers.Length;
+            for (int i = 0; i < movers.Count; i++)
+            {
+                var t = movers[i].T;
+                if (t == null) continue;
+                var mb = b.Movers[i];
+                var ma = blend ? a.Movers[i] : mb;
+                t.position = Vector3.Lerp(ma.Pos, mb.Pos, k);
+                t.rotation = Quaternion.Slerp(ma.Rot, mb.Rot, k);
+            }
+        }
+        static float _nextMoverWarn, _nextMoverRescan;
+
+        /// <summary>Client: moving obstacles only move where the host says.</summary>
+        static bool MoverFixedPrefix() => !PassiveClient;
 
         const int MaxDiscs = 40;
         const float InterpDelay = 0.075f;       // render slightly in the past: always two snapshots to blend
@@ -1041,6 +1131,15 @@ namespace BoomerangFuMultiplayer.Sync
                 w.Put(p.x); w.Put(p.y);
                 w.Put(d.velocity.x); w.Put(d.velocity.y);
             }
+            var movers = Movers();
+            w.Put((byte)movers.Count);
+            foreach (var m in movers)
+            {
+                var pos = m.T != null ? m.T.position : Vector3.zero;
+                var rot = m.T != null ? m.T.rotation : Quaternion.identity;
+                w.Put(pos.x); w.Put(pos.y); w.Put(pos.z);
+                w.Put(rot.x); w.Put(rot.y); w.Put(rot.z); w.Put(rot.w);
+            }
             BroadcastToPlaying(w, false);
         }
 
@@ -1068,6 +1167,12 @@ namespace BoomerangFuMultiplayer.Sync
                 d.NetId = r.GetInt(); d.Owner = r.GetByte(); d.Movement = r.GetByte(); d.Kind = r.GetByte();
                 d.Pos = new Vector2(r.GetFloat(), r.GetFloat());
                 d.Vel = new Vector2(r.GetFloat(), r.GetFloat());
+            }
+            s.Movers = new MoverSnap[r.AvailableBytes > 0 ? r.GetByte() : 0];
+            for (int i = 0; i < s.Movers.Length; i++)
+            {
+                s.Movers[i].Pos = new Vector3(r.GetFloat(), r.GetFloat(), r.GetFloat());
+                s.Movers[i].Rot = new Quaternion(r.GetFloat(), r.GetFloat(), r.GetFloat(), r.GetFloat());
             }
 
             if (_snaps.Count > 0 && s.HostTime <= _snaps[_snaps.Count - 1].HostTime) return; // late / duplicated
@@ -1163,6 +1268,7 @@ namespace BoomerangFuMultiplayer.Sync
             }
 
             RenderDiscs(gm, a, b, k, extra);
+            RenderMovers(a, b, k);
 
             if (Plugin.Diag && Time.unscaledTime > _nextPassiveDiag)
             {

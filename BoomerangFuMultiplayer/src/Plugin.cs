@@ -69,6 +69,7 @@ namespace BoomerangFuMultiplayer
             TryPatch("LobbySync", () => LobbySync.Patch(_harmony));
             TryPatch("MatchSync", () => MatchSync.Patch(_harmony));
             TryPatch("RoundSync", () => RoundSync.Patch(_harmony));
+            TryPatch("FxMirror", () => FxMirror.Patch(_harmony));
             TryPatch("ReplayDiag", () => Debugging.ReplayDiag.Patch(_harmony));
             TryPatch("Menus", () => _harmony.Patch(AccessTools.Method(typeof(UIManager), "SetupAllMenus"),
                 postfix: new HarmonyMethod(typeof(Plugin), nameof(SetupAllMenusPostfix))));
@@ -84,6 +85,7 @@ namespace BoomerangFuMultiplayer
             LobbySync.Register(session);
             MatchSync.Register(session);
             RoundSync.Register(session);
+            FxMirror.Register(session);
             session.Changed += LobbySync.RefreshDevices;
             gameObject.AddComponent<OnlineHud>();
 

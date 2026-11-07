@@ -28,11 +28,12 @@ namespace BoomerangFuMultiplayer.Net
         RoundReady = 21,    // client -> host : next round loaded, waiting for the start signal
         RoundStart = 22,    // host -> clients : start the round now
         AddPlayer = 23,     // host -> clients : a late joiner gets a new player in the running match
+        Fx = 24,            // host -> clients : sound / particles / shake / animation from code clients don't run
     }
 
     public static class Protocol
     {
-        public const int Version = 5;
+        public const int Version = 6;
         public const int MaxSlots = 4;
 
         public static NetDataWriter Begin(Msg type)

@@ -118,6 +118,26 @@ Compiler : `dotnet build -c Release` dans `ModSource\BoomerangFuMultiplayer\` (s
 - Le plan « serveurs dédiés » (`docs/superpowers/plans/2026-11-06-serveurs-dedies.md`) est mis de côté : le mainteneur
   préfère Spacewar s'il suffit.
 
+## Obstacles mobiles et effets (v2.4.0, protocole 6, 2026-11-07)
+- **Obstacles mobiles** : les murs, sols et portes qui bougent (`MovingObstacle*`, `MovingFloor*`,
+  `MovingDoor`, `RotatingObstacleController`) avancent dans leur `FixedUpdate` avec des durées et des sens
+  tirés au hasard, et parfois `Time.time`. Ils se décalaient donc entre l'hôte et les clients en quelques
+  secondes. L'hôte ajoute maintenant leur position et leur rotation à chaque instantané. La liste est celle
+  du niveau courant (`level.GetComponentsInChildren`, comme `Level.GetAllSwitchesAndMovingObstacles`),
+  triée par chemin dans la scène et limitée à 64. Les clients ne les simulent plus et les placent comme les
+  joueurs. Si le nombre diffère (liste faite trop tôt), le client refait sa liste une fois par seconde.
+- **Effets** (`FxMirror`, `Msg.Fx`) : le code que les clients ne jouent pas jouait aussi des sons, des
+  particules, des secousses de caméra et des animations : ricochets, rattrapages, désarmements, coups
+  parés, dashs. L'hôte les relève pendant ce code-là et les envoie sans garantie de livraison, au plus 150
+  par seconde. Les effets que les clients rejouent déjà eux-mêmes (morts, power-ups, chutes,
+  réapparitions) ne sont pas envoyés.
+- Validé à deux PC en Spacewar, avec 2 bots en « impossible » sur 5 manches :
+  - même nombre d'obstacles mobiles des deux côtés (16 au premier niveau) ;
+  - les 36 morts vues par le client sont identiques à celles de l'hôte ;
+  - effets reçus (environ 330 sons, 45 particules, 7 secousses) ;
+  - aucune erreur.
+- Une recherche sur toute la scène comptait 64 obstacles au premier niveau (d'autres niveaux encore chargés).
+
 ## Limites connues
 - Le personnage d'un client répond avec le délai du réseau (pas de prédiction locale) : jouable en
   dessous d'environ 80 ms de ping, de moins en moins confortable au-delà.
@@ -137,9 +157,13 @@ Compiler : `dotnet build -c Release` dans `ModSource\BoomerangFuMultiplayer\` (s
 Lancer l'exe directement avec un `steam_appid.txt` (965680) à côté, pour garder les arguments, et le
 supprimer après les tests.
 - `-bfump-host` (héberge en IP directe), `-bfump-host-steam` (héberge un salon Steam)
-- `-bfump-join <ip[:port]>`, `+connect_lobby <id>` (rejoint un salon Steam ; c'est aussi ce qu'utilisent les invitations)
+- `-bfump-join <ip[:port]>`, `+connect_lobby <id>` (rejoint un salon Steam ; c'est aussi ce qu'utilisent les invitations),
+  `+bfump_join <SteamID64 de l'hôte>` (rejoint l'hôte Steam par son compte)
 - `-bfump-lobby` : l'hôte ouvre le lobby dès qu'un joueur arrive
 - `-bfump-bots N` : l'hôte ouvre le lobby tout seul et ajoute N bots (test d'arrivée en cours de partie)
+- `-bfump-wait-players N` : avec le pilote automatique, l'hôte attend N joueurs humains avant de lancer
+- `-bfump-bot-difficulty easy|medium|hard|impossible` (ou 0..3) : niveau des bots de l'hôte
+- `-bfump-add-joiners` : un joueur qui arrive en cours de match est ajouté même s'il n'y a pas de bot à remplacer
 - `-bfump-autoplay` : pilote automatique (rejoindre, prêt, lancer, jouer au hasard), active les logs `[Diag]`
 - `-bfump-diag` : logs `[Diag]` seuls (états, menus, morts, écarts de position)
 - `-logFile <chemin>` (option Unity) : un log Unity par instance
