@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- BepInEx preloader patcher: runs before the game's own code (and before SteamAPI_Init). -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>BoomerangFuMultiplayer.Patcher</AssemblyName>
+    <LangVersion>9</LangVersion>
+    <OutputPath>..\..\BepInEx\patchers\BoomerangFuMultiplayer\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <BepInExCore>..\..\BepInEx\core\</BepInExCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(BepInExCore)BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(BepInExCore)Mono.Cecil.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

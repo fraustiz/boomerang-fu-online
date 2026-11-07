@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net48 avoids netstandard version conflicts with Unity 2022.3 (uses netstandard 2.1) -->
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>BoomerangFuMultiplayer</AssemblyName>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputPath>..\..\BepInEx\plugins\BoomerangFuMultiplayer\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Copy NuGet dependencies (LiteNetLib) to output so BepInEx can load them -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Old IMGUI/LiteNetLib prototype, kept for reference only -->
+    <Compile Remove="legacy\**" />
+    <None Remove="legacy\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Direct-IP transport (LAN / Hamachi / localhost tests) -->
+    <PackageReference Include="LiteNetLib" Version="1.1.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <GameManaged>..\..\Boomerang Fu_Data\Managed\</GameManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- BepInEx: already in game directory, do NOT copy to output -->
+    <Reference Include="BepInEx"><HintPath>..\..\BepInEx\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>..\..\BepInEx\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Game assemblies: already in game directory, do NOT copy to output -->
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameManaged)Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameManaged)Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Rewired_Core"><HintPath>$(GameManaged)Rewired_Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="FMODUnity"><HintPath>$(GameManaged)FMODUnity.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(GameManaged)Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.TextMeshPro"><HintPath>$(GameManaged)Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GameManaged)UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(GameManaged)UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(GameManaged)UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(GameManaged)UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(GameManaged)UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(GameManaged)UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.Physics2DModule"><HintPath>$(GameManaged)UnityEngine.Physics2DModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(GameManaged)UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(GameManaged)UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+</Project>

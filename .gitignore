@@ -1,0 +1,12 @@
+# build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# release archives go to GitHub Releases, not the repository
+dist/
+
+# local agent workspaces
+.superpowers/
