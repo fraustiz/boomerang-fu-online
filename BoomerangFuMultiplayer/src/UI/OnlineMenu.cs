@@ -107,6 +107,23 @@ namespace BoomerangFuMultiplayer.UI
             var strip = list.GetComponent<Image>();
             if (strip != null) strip.enabled = false;
 
+            // Backdrop: the main menu's illustration (a render texture filled by UIManager.mainMenuBGCamera),
+            // under the pause menu's dark veil. The pause menu expects the match behind it; here there is
+            // only the empty 3D scene: a bare sky and, with no level loaded, the arena's red boundary glow
+            // as a bar in the middle of the screen.
+            var art = main.GetComponentsInChildren<RawImage>(true).FirstOrDefault(r => r.texture is RenderTexture);
+            if (art != null)
+            {
+                var artGo = Instantiate(art.gameObject, go.transform);
+                artGo.name = "BFUMP_Backdrop";
+                artGo.transform.SetSiblingIndex(0);
+                for (int i = artGo.transform.childCount - 1; i >= 0; i--) DestroyImmediate(artGo.transform.GetChild(i).gameObject);
+                artGo.GetComponent<RawImage>().raycastTarget = false;
+                var veil = go.transform.Find("Background")?.GetComponent<Image>();
+                if (veil != null) { var c = veil.color; c.a = Mathf.Max(c.a, BackdropVeil); veil.color = c; }
+            }
+            else Plugin.Log.LogWarning("[OnlineMenu] main menu illustration not found");
+
             var src = main.initialSelection != null ? main.initialSelection : main.GetComponentInChildren<UIButton>(true)?.gameObject;
             if (src == null) throw new Exception("no button in main menu");
             var template = Instantiate(src, list).GetComponent<UIButton>();
@@ -235,8 +252,24 @@ namespace BoomerangFuMultiplayer.UI
             if (w != null) wrapper = w.GetComponent<RectTransform>();
         }
 
+        const float BackdropVeil = 0.55f;
+
+        /// <summary>The main menu's illustration is drawn only while its camera runs (the lobby and the options stop it).</summary>
+        static void ShowBackdrop()
+        {
+            var ui = Game.Get<UIManager>();
+            if (ui != null && ui.mainMenuBGCamera != null) ui.mainMenuBGCamera.enabled = true;
+        }
+
+        public override void Resume()
+        {
+            base.Resume();
+            ShowBackdrop();
+        }
+
         public override void Init()
         {
+            ShowBackdrop();
             if (_group != null) _group.alpha = 1f;
             _dirty = true;
             Refresh();

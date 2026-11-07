@@ -137,6 +137,11 @@ Compiler : `dotnet build -c Release` dans `ModSource\BoomerangFuMultiplayer\` (s
   - effets reçus (environ 330 sons, 45 particules, 7 secousses) ;
   - aucune erreur.
 - Une recherche sur toute la scène comptait 64 obstacles au premier niveau (d'autres niveaux encore chargés).
+- v2.4.1 : l'écran EN LIGNE, copié du menu pause, laissait voir la scène 3D vide : un ciel uni et, sans
+  niveau chargé, la lueur rouge de la limite de l'arène, en barre au milieu de l'écran. Il reprend
+  maintenant l'illustration du menu principal (`MainMenu_RenderTexture`, rendue par
+  `UIManager.mainMenuBGCamera`, que le lobby et les options coupent : le menu la rallume) sous un voile
+  sombre à 55 %.
 
 ## Limites connues
 - Le personnage d'un client répond avec le délai du réseau (pas de prédiction locale) : jouable en
